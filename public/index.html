@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Project Tracker</title>
+<style>
+  :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2433; --muted:#667085; --line:#e4e7ec;
+          --ok:#1a7f37; --risk:#b54708; --block:#b42318; --done:#475467; --accent:#2f5bd3; }
+  * { box-sizing: border-box; }
+  body { margin:0; font:14px/1.45 system-ui, -apple-system, Segoe UI, Roboto, sans-serif; background:var(--bg); color:var(--ink); }
+  header { background:#101828; color:#fff; padding:14px 20px; display:flex; flex-wrap:wrap; gap:12px; align-items:center; justify-content:space-between; }
+  header h1 { font-size:17px; margin:0; } header .sub { color:#98a2b3; font-size:12px; }
+  nav { display:flex; gap:4px; padding:10px 20px 0; flex-wrap:wrap; }
+  nav button { border:1px solid var(--line); border-bottom:none; background:#eef0f4; padding:8px 14px; border-radius:8px 8px 0 0; cursor:pointer; font:inherit; }
+  nav button.active { background:var(--card); font-weight:600; }
+  main { background:var(--card); margin:0 20px 20px; border:1px solid var(--line); border-radius:0 8px 8px 8px; padding:18px; }
+  .row { display:flex; gap:12px; flex-wrap:wrap; }
+  .kpi { flex:1 1 120px; border:1px solid var(--line); border-radius:8px; padding:10px 12px; }
+  .kpi b { display:block; font-size:22px; }
+  .cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:12px; margin:12px 0 18px; }
+  .card { border:1px solid var(--line); border-left:5px solid var(--risk); border-radius:8px; padding:12px; }
+  .card.Blocked { border-left-color:var(--block); }
+  .card h3 { margin:2px 0 6px; font-size:15px; } .card ul { margin:6px 0 0; padding-left:18px; }
+  .rank { color:var(--muted); font-size:12px; }
+  .pill { display:inline-block; padding:1px 8px; border-radius:99px; font-size:12px; font-weight:600; color:#fff; }
+  .pill.On.track, .pill.ontrack { background:var(--ok); } .pill.atrisk { background:var(--risk); }
+  .pill.blocked { background:var(--block); } .pill.done { background:var(--done); }
+  table { width:100%; border-collapse:collapse; } th, td { text-align:left; padding:7px 8px; border-bottom:1px solid var(--line); vertical-align:top; }
+  th { font-size:12px; color:var(--muted); font-weight:600; position:sticky; top:0; background:var(--card); }
+  .tablewrap { overflow-x:auto; }
+  .score { font-weight:700; } .muted { color:var(--muted); font-size:12px; }
+  select, input, textarea { font:inherit; padding:6px 8px; border:1px solid #d0d5dd; border-radius:6px; }
+  button.primary { background:var(--accent); color:#fff; border:none; padding:8px 14px; border-radius:6px; cursor:pointer; font:inherit; }
+  button.small { padding:4px 10px; font-size:12px; }
+  form.grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:12px; max-width:900px; }
+  form.grid label { display:flex; flex-direction:column; gap:4px; font-size:12px; color:var(--muted); }
+  .sweepbar { display:flex; flex-wrap:wrap; gap:10px; align-items:center; background:#eef4ff; border:1px solid #c7d7fe; padding:10px 12px; border-radius:8px; }
+  .flash { animation: flash 2s ease-out; } @keyframes flash { from { background:#fff3c4; } to { background:transparent; } }
+  .log li { margin-bottom:4px; } .hidden { display:none; }
+  h2 { font-size:16px; margin:4px 0 8px; }
+</style>
+</head>
+<body>
+<header>
+  <div><h1>Lenskart Leadership Project Tracker</h1><div class="sub">8 functions, one format · sample data, generated for the demo</div></div>
+  <div class="sub" id="clock"></div>
+</header>
+<nav>
+  <button data-tab="lead" class="active">Leadership view</button>
+  <button data-tab="all">All projects</button>
+  <button data-tab="add">Add project</button>
+  <button data-tab="log">Activity</button>
+</nav>
+<main>
+  <section id="lead">
+    <div class="sweepbar">
+      <b>Automated risk sweep</b>
+      <span id="sweepInfo" class="muted"></span>
+      <button class="primary small" id="runSweep">Run sweep now</button>
+    </div>
+    <h2 style="margin-top:16px">Three things needing attention this week</h2>
+    <div class="cards" id="top"></div>
+    <div class="row" id="kpis"></div>
+    <h2 style="margin-top:18px">Latest sweep digest</h2>
+    <div id="digest" class="muted"></div>
+  </section>
+
+  <section id="all" class="hidden">
+    <div class="row" style="margin-bottom:10px">
+      <select id="fFn"><option value="">All functions</option></select>
+      <select id="fSt"><option value="">All statuses</option></select>
+      <span class="muted" id="countAll"></span>
+    </div>
+    <div class="tablewrap"><table>
+      <thead><tr><th>ID</th><th>Project</th><th>Function</th><th>Owner</th><th>Status</th><th>Progress</th><th>Due</th><th>Risk</th><th>Update</th></tr></thead>
+      <tbody id="rows"></tbody>
+    </table></div>
+  </section>
+
+  <section id="add" class="hidden">
+    <h2>Add a project</h2>
+    <form class="grid" id="addForm">
+      <label>Project name<input name="name" required></label>
+      <label>Function<select name="function" id="addFn" required></select></label>
+      <label>Owner<input name="owner" required></label>
+      <label>Status<select name="status" id="addSt"></select></label>
+      <label>Start date<input type="date" name="startDate" required></label>
+      <label>Due date<input type="date" name="dueDate" required></label>
+      <label>Progress %<input type="number" name="progress" min="0" max="100" value="0"></label>
+      <label>Note<input name="note"></label>
+      <div><button class="primary" type="submit">Add project</button></div>
+    </form>
+    <p class="muted" id="addMsg"></p>
+  </section>
+
+  <section id="log" class="hidden">
+    <h2>Activity (UI, webhook and scheduled sweep)</h2>
+    <ul class="log" id="events"></ul>
+    <h2>Webhook</h2>
+    <p class="muted">Functions can push updates from their own tools:</p>
+    <pre id="hookEx" style="background:#f2f4f7;padding:10px;border-radius:6px;overflow-x:auto"></pre>
+  </section>
+</main>
+
+<script>
+const $ = (s) => document.querySelector(s);
+let state = null, lastSweepAt = null;
+const cls = (s) => s.toLowerCase().replace(/\s+/g, '');
+const pill = (s) => `<span class="pill ${cls(s)}">${s}</span>`;
+const esc = (t) => String(t ?? '').replace(/[&<>"]/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c]));
+const fmt = (iso) => new Date(iso).toLocaleString();
+
+document.querySelectorAll('nav button').forEach((b) => b.onclick = () => {
+  document.querySelectorAll('nav button').forEach((x) => x.classList.toggle('active', x === b));
+  document.querySelectorAll('main section').forEach((s) => s.classList.toggle('hidden', s.id !== b.dataset.tab));
+});
+
+async function refresh() {
+  state = await (await fetch('/api/state')).json();
+  render();
+}
+
+function render() {
+  const fns = [...new Set(state.projects.map((p) => p.function))];
+  for (const [sel, opts, first] of [[$('#fFn'), fns, 'All functions'], [$('#fSt'), state.statuses, 'All statuses']]) {
+    if (sel.options.length === 1) opts.forEach((o) => sel.add(new Option(o, o)));
+  }
+  if (!$('#addFn').options.length) { fns.forEach((o) => $('#addFn').add(new Option(o, o))); state.statuses.forEach((o) => $('#addSt').add(new Option(o, o))); }
+
+  // Leadership: top 3
+  $('#top').innerHTML = state.top.map((p, i) => `
+    <div class="card ${p.status}">
+      <div class="rank">#${i + 1} · risk score <span class="score">${p.risk.score}</span> · ${esc(p.function)}</div>
+      <h3>${esc(p.name)}</h3>
+      <div>${pill(p.status)} <span class="muted">Owner: ${esc(p.owner)} · ${p.progress}% · due ${p.dueDate}</span></div>
+      <ul>${p.risk.reasons.map((r) => `<li>${esc(r)}</li>`).join('')}</ul>
+      <div class="muted" style="margin-top:6px">Latest: ${esc(p.updates[0]?.note)}</div>
+    </div>`).join('') || '<p>Nothing at risk.</p>';
+
+  const counts = Object.fromEntries(state.statuses.map((s) => [s, state.projects.filter((p) => p.status === s).length]));
+  $('#kpis').innerHTML = state.statuses.map((s) => `<div class="kpi"><span class="muted">${s}</span><b>${counts[s]}</b></div>`).join('')
+    + `<div class="kpi"><span class="muted">Stale (7+ days, open)</span><b>${state.projects.filter((p) => p.status !== 'Done' && p.risk.staleDays >= 7).length}</b></div>`;
+
+  const d = state.digests[0];
+  if (d) {
+    if (lastSweepAt && d.at !== lastSweepAt) { $('#digest').classList.remove('flash'); void $('#digest').offsetWidth; $('#digest').classList.add('flash'); }
+    lastSweepAt = d.at;
+    $('#digest').innerHTML = `<div>Ran ${fmt(d.at)} · trigger: <b>${d.trigger}</b> · ${d.changes.length} auto-flag(s)</div>
+      ${d.changes.length ? '<ul>' + d.changes.map((c) => `<li>${esc(c)}</li>`).join('') + '</ul>' : ''}
+      <div>Top 3: ${d.top.map((t) => `${t.id} ${esc(t.name)} (${t.score})`).join(' · ')}</div>`;
+  } else $('#digest').textContent = 'No sweep yet; the first scheduled one is coming.';
+
+  // All projects table
+  const f1 = $('#fFn').value, f2 = $('#fSt').value;
+  const list = state.projects.filter((p) => (!f1 || p.function === f1) && (!f2 || p.status === f2))
+    .sort((a, b) => b.risk.score - a.risk.score);
+  $('#countAll').textContent = `${list.length} projects, sorted by risk`;
+  $('#rows').innerHTML = list.map((p) => `
+    <tr data-id="${p.id}">
+      <td>${p.id}</td><td>${esc(p.name)}<div class="muted">${esc(p.updates[0]?.note)}</div></td><td>${esc(p.function)}</td><td>${esc(p.owner)}</td>
+      <td>${pill(p.status)}</td><td>${p.progress}%</td><td>${p.dueDate}</td>
+      <td><span class="score">${p.risk.score}</span><div class="muted">${esc(p.risk.reasons.join('; '))}</div></td>
+      <td><select class="u-st">${state.statuses.map((s) => `<option ${s === p.status ? 'selected' : ''}>${s}</option>`).join('')}</select>
+          <input class="u-pr" type="number" min="0" max="100" value="${p.progress}" style="width:64px">
+          <input class="u-note" placeholder="note" style="width:130px">
+          <button class="primary small u-save">Save</button></td>
+    </tr>`).join('');
+  document.querySelectorAll('.u-save').forEach((btn) => btn.onclick = async () => {
+    const tr = btn.closest('tr');
+    await fetch(`/api/projects/${tr.dataset.id}/update`, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: tr.querySelector('.u-st').value, progress: tr.querySelector('.u-pr').value, note: tr.querySelector('.u-note').value }) });
+    refresh();
+  });
+
+  $('#events').innerHTML = state.events.map((e) => `<li><span class="muted">${fmt(e.at)}</span> <b>[${e.kind}]</b> ${esc(e.text)}</li>`).join('');
+  $('#hookEx').textContent = `curl -X POST ${location.origin}/hooks/update \\\n  -H 'Content-Type: application/json' \\\n  -d '{"project":"P009","status":"Blocked","progress":75,"note":"UPI partner outage","source":"jira"}'`;
+}
+
+function tick() {
+  if (!state) return;
+  const secs = Math.max(0, Math.round((new Date(state.nextSweepAt) - Date.now()) / 1000));
+  $('#sweepInfo').textContent = `Runs by itself every hour (weekly in real use) · next run in ${Math.floor(secs / 60)}m ${secs % 60}s · last run ${state.digests[0] ? fmt(state.digests[0].at) : '—'}`;
+  $('#clock').textContent = new Date().toLocaleString();
+}
+
+$('#fFn').onchange = $('#fSt').onchange = render;
+$('#runSweep').onclick = async () => { await fetch('/api/sweep', { method: 'POST' }); refresh(); };
+$('#addForm').onsubmit = async (e) => {
+  e.preventDefault();
+  const body = Object.fromEntries(new FormData(e.target));
+  const r = await fetch('/api/projects', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  const p = await r.json();
+  $('#addMsg').textContent = r.ok ? `Added ${p.id} "${p.name}" — risk score ${p.risk.score}${p.risk.reasons.length ? ' (' + p.risk.reasons.join('; ') + ')' : ''}.` : (p.error || 'Error');
+  if (r.ok) e.target.reset();
+  refresh();
+};
+
+refresh(); setInterval(refresh, 4000); setInterval(tick, 1000);
+</script>
+</body>
+</html>
